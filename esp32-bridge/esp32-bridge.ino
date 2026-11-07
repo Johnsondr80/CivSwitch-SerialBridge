@@ -26,7 +26,6 @@
 
 // ── Config (change these if you want) ───────────────────────────────
 const char* AP_SSID     = "Switch2Bridge";
-const char* AP_PASSWORD = "civswitch32";
 const int   AP_CHANNEL  = 6;
 const int   MAX_CLIENTS = 4;
 
@@ -50,6 +49,43 @@ int lastClientCount = -1;
 unsigned long lastBlinkTime = 0;
 int blinkPhase = 0;
 
+// Nintendo connectivity-check handler.
+// The Switch probes specific hostnames after joining a network. If the
+// responses match what Nintendo's servers return, it considers itself
+// online and skips the captive-portal popup entirely.
+//
+// Adapted from 90DNS (GPL-2.0-or-later) via
+// fernando-granco/switch2-homebrew (MIT).
+void handleHttp() {
+  String host = httpServer.hostHeader();
+
+  // Legacy connectivity test (conntest.nintendowifi.net)
+  if (host == "conntest.nintendowifi.net") {
+    httpServer.sendHeader("Cache-Control", "no-store");
+    httpServer.sendHeader("X-Organization", "Nintendo");
+    httpServer.send(200, "text/html",
+      "<html><head><title>HTML Page</title></head>"
+      "<body>This is test.html page</body></html>");
+    return;
+  }
+
+  // Modern connectivity tests (ctest / api endpoints)
+  if (host == "ctest.cdn.nintendo.net" ||
+      host == "ctest.p01.ctest.srv.nintendo.net" ||
+      host == "ctest-dl-lp1.cdn.nintendo.net" ||
+      host == "ctest-ul-lp1.cdn.nintendo.net" ||
+      host == "api.p01.lp1.ctest.srv.nintendo.net" ||
+      host == "api-ipv6.p01.lp1.ctest.srv.nintendo.net") {
+    httpServer.sendHeader("Cache-Control", "no-store");
+    httpServer.sendHeader("X-Organization", "Nintendo");
+    httpServer.send(200, "text/plain", "ok");
+    return;
+  }
+
+  // Everything else — no internet forwarding
+  httpServer.send(404, "text/plain", "");
+}
+
 void setup() {
   Serial.begin(115200);
   Serial.setRxBufferSize(65536);
@@ -62,7 +98,7 @@ void setup() {
   WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(apIP, gateway, subnet);
 
-  bool ok = WiFi.softAP(AP_SSID, AP_PASSWORD, AP_CHANNEL, false, MAX_CLIENTS);
+  bool ok = WiFi.softAP(AP_SSID, NULL, AP_CHANNEL, false, MAX_CLIENTS);
   if (!ok) {
     Serial.println("[ERROR] Failed to start AP");
     while (true) {
@@ -77,22 +113,21 @@ void setup() {
   // resolves to us instead of timing out.
   dnsServer.start(53, "*", apIP);
 
-  // The Switch will show a "registration required" captive portal
-  // page once — just dismiss it and the connection sticks.
-  httpServer.onNotFound([]() {
-    httpServer.send(200, "text/html", "OK");
-  });
+  // Emulate Nintendo connectivity-check responses so the Switch
+  // believes it's online and never shows a captive-portal popup.
+  // Adapted from 90DNS (GPL-2.0-or-later) via fernando-granco/switch2-homebrew.
+  httpServer.onNotFound(handleHttp);
   httpServer.begin();
 
   Serial.println();
   Serial.println("========================================");
   Serial.println("  CivSwitch Serial Bridge");
   Serial.printf("  SSID:     %s\n", AP_SSID);
-  Serial.printf("  Password: %s\n", AP_PASSWORD);
+  Serial.println("  Auth:     Open (no password)");
   Serial.printf("  AP IP:    %s\n", WiFi.softAPIP().toString().c_str());
   Serial.println("========================================");
   Serial.println();
-  Serial.println("Connect the Switch to this AP.");
+  Serial.println("Connect the Switch to this AP (no popup).");
   Serial.println("Send payloads from your PC with send_serial.py.");
   Serial.println();
 }

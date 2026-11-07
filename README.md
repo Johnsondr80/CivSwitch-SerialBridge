@@ -33,8 +33,8 @@ The serial monitor (115200 baud) will show the AP details when it boots.
 
 ## Connect the Switch
 
-1. On the Switch, connect to the `Switch2Bridge` network (password: `civswitch32`)
-2. It'll show a "registration required" captive portal page — just back out of it, the connection stays
+1. On the Switch, connect to the `Switch2Bridge` network (open, no password)
+2. The ESP32 spoofs Nintendo's connectivity-check endpoints, so the Switch sees the network as online and connects straight through — no captive-portal popup
 3. Note the Switch's IP (check Settings > Internet, or it's usually `192.168.4.2`)
 
 ## Send payloads
@@ -80,13 +80,16 @@ Edit these lines at the top of the `.ino` if you want different network settings
 
 ```c
 const char* AP_SSID     = "Switch2Bridge";
-const char* AP_PASSWORD = "civswitch32";
+const int   AP_CHANNEL  = 6;
+const int   MAX_CLIENTS = 4;
 const int   LED_PIN     = 2;   // set to -1 to disable LED
 ```
 
+The AP is open by default (no password). If you want one, pass it to `WiFi.softAP()` in `setup()`.
+
 ## How it works
 
-The ESP32 runs a soft AP with DHCP, a DNS server (resolves all queries to itself), and an HTTP server that responds to the Switch's connectivity check. The DNS + HTTP trick makes the Switch accept the network even though there's no actual internet.
+The ESP32 runs a soft AP with DHCP, a DNS server (resolves all queries to itself), and an HTTP server that mimics Nintendo's connectivity-check endpoints (`conntest.nintendowifi.net`, `ctest.*.nintendo.net`, etc.) so the Switch considers itself online and skips the captive-portal popup entirely. The connectivity-check responses are adapted from [90DNS](https://github.com/Thesola10/90dns) (GPL-2.0-or-later) via [fernando-granco/switch2-homebrew](https://github.com/fernando-granco/switch2-homebrew) (MIT).
 
 When you run `send_serial.py`, it sends the payload over USB serial to the ESP32 with a small header (`SEND <ip> <port> <length>`). The ESP32 opens a TCP connection to the Switch on its own Wi-Fi network, sends the payload, does a TCP half-close (so the loader knows the payload is complete), reads back the response, and prints it over serial.
 
