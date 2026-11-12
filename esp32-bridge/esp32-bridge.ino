@@ -35,7 +35,7 @@ IPAddress subnet(255, 255, 255, 0);
 
 // Built-in LED pin. GPIO 2 on most boards.
 // Set to -1 if your board doesn't have one or you don't care.
-const int LED_PIN = 2;
+const int LED_PIN = 13;
 
 // ── DNS + HTTP (makes the Switch accept the network) ────────────────
 DNSServer dnsServer;
