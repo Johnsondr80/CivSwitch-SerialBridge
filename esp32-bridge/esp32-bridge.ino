@@ -26,6 +26,7 @@
 
 // ── Config (change these if you want) ───────────────────────────────
 const char* AP_SSID     = "Switch2Bridge";
+const char* AP_PASS = "YourPasswordHere"; // Add this line (minimum 8 characters)
 const int   AP_CHANNEL  = 6;
 const int   MAX_CLIENTS = 4;
 
@@ -98,7 +99,7 @@ void setup() {
   WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(apIP, gateway, subnet);
 
-  bool ok = WiFi.softAP(AP_SSID, NULL, AP_CHANNEL, false, MAX_CLIENTS);
+  bool ok = WiFi.softAP(AP_SSID, AP_PASS, AP_CHANNEL, false, MAX_CLIENTS);
   if (!ok) {
     Serial.println("[ERROR] Failed to start AP");
     while (true) {
@@ -123,7 +124,9 @@ void setup() {
   Serial.println("========================================");
   Serial.println("  CivSwitch Serial Bridge");
   Serial.printf("  SSID:     %s\n", AP_SSID);
-  Serial.println("  Auth:     Open (no password)");
+  Serial.println("  Auth:     WPA2-PSK");
+  Serial.print("  Pass:     ");
+  Serial.println(AP_PASS);
   Serial.printf("  AP IP:    %s\n", WiFi.softAPIP().toString().c_str());
   Serial.println("========================================");
   Serial.println();
